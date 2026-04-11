@@ -1,31 +1,22 @@
-use axum::{Router, response::Html, routing::get};
+mod models;
+mod routes;
+
+use axum::Router;
+use models::AppState;
+use routes::{api, pages};
 
 #[tokio::main]
 async fn main() {
-    let app = Router::new().route("/", get(handler));
+    let state = AppState::new();
+
+    let app = Router::new()
+        .merge(pages::page_routes())
+        .nest("/api", api::api_routes())
+        .with_state(state);
 
     let listener = tokio::net::TcpListener::bind("0.0.0.0:31151")
         .await
         .unwrap();
-
-    println!("Server running on http://127.0.0.1:31151");
-
+    println!("Server running on http://0.0.0.0:31151");
     axum::serve(listener, app).await.unwrap();
-}
-
-async fn handler() -> Html<&'static str> {
-    Html(
-        r#"
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <title>Test Page</title>
-        </head>
-        <body>
-            <h1>Hello world</h1>
-            <p>This is a test HTML page served at /</p>
-        </body>
-        </html>
-        "#,
-    )
 }
