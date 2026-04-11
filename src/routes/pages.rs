@@ -100,8 +100,8 @@ static KITCHEN_TEMPLATE: &str = r#"<!DOCTYPE html>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Kitchen - Orders</title>
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #1a1a2e; color: #eee; min-height: 100vh; }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
         .container { max-width: 800px; margin: 0 auto; padding: 20px; }
         h1 { text-align: center; color: #ff6b6b; margin-bottom: 30px; }
         .order { background: #16213e; border-radius: 12px; padding: 20px; margin-bottom: 20px; border-left: 4px solid #ff6b6b; animation: slideIn 0.3s ease; }
@@ -139,33 +139,19 @@ static KITCHEN_TEMPLATE: &str = r#"<!DOCTYPE html>
             }
             if (orders.length !== lastOrderCount) {
                 lastOrderCount = orders.length;
-                const next = orders[0];
-                container.innerHTML = `
+                container.innerHTML = orders.map(o => `
                     <div class="order">
-                        <div class="order-type">${next.order_type}</div>
+                        <!-- <div class="order-type">${o.order_type}</div> -->
                         <div class="order-header">
-                            <span class="order-table">${next.table}</span>
-                            <span class="order-id">#${next.id}</span>
-                        </div>
-                        <ul class="order-items">
-                            ${next.items.map(item => `<li>${item}</li>`).join('')}
-                        </ul>
-                        ${next.notes ? `<div class="order-notes">${next.notes}</div>` : ''}
-                        <button class="done-btn" onclick="done(${next.id})">DONE</button>
-                    </div>
-                    ${orders.slice(1).map(o => `
-                    <div class="order" style="border-left-color: #666; opacity: 0.7;">
-                        <div class="order-type">${o.order_type}</div>
-                        <div class="order-header">
-                            <span class="order-table">${o.table}</span>
+                            <span class="order-table">${o.order_type}</span>
                             <span class="order-id">#${o.id}</span>
                         </div>
                         <ul class="order-items">
                             ${o.items.map(item => `<li>${item}</li>`).join('')}
                         </ul>
+                        ${o.notes ? `<div class="order-notes">${o.notes}</div>` : ''}
                         <button class="done-btn" onclick="done(${o.id})">DONE</button>
-                    </div>`).join('')}
-                `;
+                    </div>`).join('');
             }
         }
         async function done(orderId) {
