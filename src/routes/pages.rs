@@ -33,7 +33,10 @@ async fn frontdesk(State(state): State<AppState>) -> Html<String> {
     let config = state.config.lock().await.clone();
     let mut ctx = Context::new();
     ctx.insert("order_types", &config.order_types);
-    ctx.insert("order_types_json", &serde_json::to_string(&config.order_types).unwrap());
+    ctx.insert(
+        "order_types_json",
+        &serde_json::to_string(&config.order_types).unwrap(),
+    );
     Html(render_template("frontdesk.html", ctx))
 }
 
@@ -62,24 +65,23 @@ static FRONTDESK_TEMPLATE: &str = r#"<!DOCTYPE html>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #1a1a2e; color: #eee; min-height: 100vh; }
-        .container { max-width: 1200px; margin: 0 auto; padding: 20px; }
-        h1 { text-align: center; color: #00d4ff; margin-bottom: 30px; }
-        .tables-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 20px; }
-        .table-card { background: #16213e; border-radius: 16px; padding: 20px; border: 3px solid #333; }
-        .table-card.active { border-color: #00d4ff; }
-        .table-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
-        .table-number { font-size: 28px; font-weight: bold; color: #00d4ff; }
-        .table-badge { background: #ff6b6b; color: white; padding: 4px 12px; border-radius: 12px; font-size: 14px; }
-        .plate-buttons { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-bottom: 15px; }
-        .plate-btn { padding: 15px; background: #0f3460; border: 2px solid #333; border-radius: 10px; color: #eee; cursor: pointer; font-size: 14px; transition: all 0.1s; }
+        .container { max-width: 500px; margin: 0 auto; padding: 15px; }
+        h1 { text-align: center; color: #00d4ff; margin-bottom: 20px; }
+        .table-nav { display: flex; justify-content: center; align-items: center; gap: 15px; margin-bottom: 20px; }
+        .table-nav button { width: 50px; height: 50px; background: #16213e; border: 2px solid #333; border-radius: 12px; color: #eee; font-size: 24px; cursor: pointer; }
+        .table-nav button:hover { border-color: #00d4ff; }
+        .table-number { font-size: 48px; font-weight: bold; color: #00d4ff; }
+        .table-badge { background: #ff6b6b; color: white; padding: 6px 16px; border-radius: 20px; font-size: 16px; }
+        .plate-buttons { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-bottom: 20px; }
+        .plate-btn { padding: 20px; background: #0f3460; border: 2px solid #333; border-radius: 12px; color: #eee; cursor: pointer; font-size: 18px; transition: all 0.1s; }
         .plate-btn:hover { border-color: #00d4ff; }
         .plate-btn:active { background: #00d4ff; color: #1a1a2e; }
         .plate-btn.selected { background: #00d4ff; color: #1a1a2e; border-color: #00d4ff; }
-        .order-items { min-height: 60px; background: #0f3460; border-radius: 10px; padding: 10px; margin-bottom: 15px; }
-        .order-item { display: flex; justify-content: space-between; align-items: center; padding: 8px; background: #16213e; border-radius: 6px; margin-bottom: 6px; }
+        .order-items { min-height: 80px; background: #0f3460; border-radius: 12px; padding: 12px; margin-bottom: 20px; }
+        .order-item { display: flex; justify-content: space-between; align-items: center; padding: 10px; background: #16213e; border-radius: 8px; margin-bottom: 8px; font-size: 18px; }
         .order-item:last-child { margin-bottom: 0; }
-        .order-item button { background: #ff4757; border: none; border-radius: 4px; padding: 4px 10px; color: white; cursor: pointer; }
-        .send-btn { width: 100%; padding: 16px; background: #2ed573; border: none; border-radius: 10px; color: #1a1a2e; font-size: 18px; font-weight: bold; cursor: pointer; }
+        .order-item button { background: #ff4757; border: none; border-radius: 6px; padding: 8px 14px; color: white; cursor: pointer; font-size: 16px; }
+        .send-btn { width: 100%; padding: 20px; background: #2ed573; border: none; border-radius: 12px; color: #1a1a2e; font-size: 22px; font-weight: bold; cursor: pointer; }
         .send-btn:hover { background: #26b863; }
         .send-btn:disabled { background: #333; color: #666; cursor: not-allowed; }
         .sent { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: #2ed573; color: #1a1a2e; padding: 30px 60px; border-radius: 20px; font-size: 36px; font-weight: bold; opacity: 0; transition: opacity 0.2s; pointer-events: none; }
@@ -89,79 +91,75 @@ static FRONTDESK_TEMPLATE: &str = r#"<!DOCTYPE html>
 <body>
     <div class="container">
         <h1>Frontdesk</h1>
-        <div class="tables-grid" id="tables"></div>
+        <div class="table-nav">
+            <button onclick="changeTable(-1)">−</button>
+            <div style="text-align:center;">
+                <div class="table-number" id="tableNum">1</div>
+                <div class="table-badge"><span id="plateCount">0</span> plates</div>
+            </div>
+            <button onclick="changeTable(1)">+</button>
+        </div>
+        <div class="plate-buttons" id="plateButtons"></div>
+        <div class="order-items">
+            <div id="orderItems" style="color:#666;text-align:center;padding:20px;">No items</div>
+        </div>
+        <button class="send-btn" id="sendBtn" onclick="sendOrder()" disabled>SEND</button>
     </div>
     <div class="sent" id="sent">SENT!</div>
     <script>
-        const NUM_TABLES = 10;
         const orderTypes = {{ order_types_json | safe }};
-        const tables = {};
+        let currentTable = 1;
+        let items = [];
 
-        function initTables() {
-            for (let i = 1; i <= NUM_TABLES; i++) {
-                tables[i] = { items: [] };
-            }
-            renderTables();
+        function render() {
+            document.getElementById('tableNum').textContent = currentTable;
+            document.getElementById('plateButtons').innerHTML = orderTypes.map(t => 
+                `<button class="plate-btn" onclick="addPlate('${t}')">${t}</button>`).join('');
+            document.getElementById('orderItems').innerHTML = items.length === 0 ? 'No items' : 
+                items.map((item, idx) => `<div class="order-item"><span>${item}</span><button onclick="removePlate(${idx})">×</button></div>`).join('');
+            document.getElementById('plateCount').textContent = items.length;
+            document.getElementById('sendBtn').disabled = items.length === 0;
         }
 
-        function renderTables() {
-            const container = document.getElementById('tables');
-            container.innerHTML = '';
-            for (let i = 1; i <= NUM_TABLES; i++) {
-                const table = tables[i];
-                const card = document.createElement('div');
-                card.className = 'table-card' + (table.items.length > 0 ? ' active' : '');
-                card.innerHTML = `
-                    <div class="table-header">
-                        <span class="table-number">Table ${i}</span>
-                        <span class="table-badge">${table.items.length} plates</span>
-                    </div>
-                    <div class="plate-buttons">
-                        ${orderTypes.map(t => `<button class="plate-btn" onclick="addPlate(${i}, '${t}')">${t}</button>`).join('')}
-                    </div>
-                    <div class="order-items">
-                        ${table.items.length === 0 ? '<div style="color:#666;text-align:center;padding:20px;">No items</div>' : 
-                          table.items.map((item, idx) => `<div class="order-item"><span>${item}</span><button onclick="removePlate(${i}, ${idx})">×</button></div>`).join('')}
-                    </div>
-                    <button class="send-btn" onclick="sendOrder(${i})" ${table.items.length === 0 ? 'disabled' : ''}>SEND</button>
-                `;
-                container.appendChild(card);
-            }
+        function changeTable(delta) {
+            currentTable = Math.max(1, currentTable + delta);
+            items = [];
+            render();
         }
 
-        function addPlate(tableNum, plate) {
-            tables[tableNum].items.push(plate);
-            renderTables();
+        function addPlate(plate) {
+            items.push(plate);
+            render();
         }
 
-        function removePlate(tableNum, idx) {
-            tables[tableNum].items.splice(idx, 1);
-            renderTables();
+        function removePlate(idx) {
+            items.splice(idx, 1);
+            render();
         }
 
-        async function sendOrder(tableNum) {
-            const table = tables[tableNum];
-            if (table.items.length === 0) return;
+        async function sendOrder() {
+            if (items.length === 0) return;
             const res = await fetch('/api/orders', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({
                     id: Date.now(),
-                    table: tableNum,
-                    plates: table.items,
+                    table: currentTable,
+                    plates: items,
                     notes: null
                 })
             });
             if (res.ok) {
-                tables[tableNum].items = [];
-                renderTables();
+                items = [];
+                currentTable++;
+                render();
                 const el = document.getElementById('sent');
                 el.classList.add('show');
                 setTimeout(() => el.classList.remove('show'), 800);
             }
         }
 
-        initTables();
+        render();
     </script>
 </body>
 </html>"#;
@@ -196,7 +194,7 @@ static KITCHEN_TEMPLATE: &str = r#"<!DOCTYPE html>
 <body>
     <div class="container">
         <h1>Kitchen Display</h1>
-        <div class="status" id="status">Live</div>
+        <!-- <div class="status" id="status">Live</div> -->
         <div id="orders"></div>
     </div>
     <script>
