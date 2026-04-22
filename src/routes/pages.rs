@@ -33,10 +33,11 @@ async fn frontdesk(State(state): State<AppState>) -> Html<String> {
     let config = state.config.lock().await.clone();
     let mut ctx = Context::new();
     ctx.insert("order_types", &config.order_types);
+    ctx.insert("order_types_json", &serde_json::to_string(&config.order_types).unwrap());
     Html(render_template("frontdesk.html", ctx))
 }
 
-async fn kitchen() -> Html<String> {
+async fn kitchen(_state: State<AppState>) -> Html<String> {
     let ctx = Context::new();
     Html(render_template("kitchen.html", ctx))
 }
@@ -61,34 +62,106 @@ static FRONTDESK_TEMPLATE: &str = r#"<!DOCTYPE html>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #1a1a2e; color: #eee; min-height: 100vh; }
-        .container { max-width: 800px; margin: 0 auto; padding: 20px; display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; height: calc(100vh - 40px); }
-        .type-btn { font-size: 48px; font-weight: bold; background: #16213e; border: 4px solid #333; border-radius: 20px; color: #eee; cursor: pointer; transition: all 0.1s; }
-        .type-btn:hover { background: #0f3460; border-color: #00d4ff; transform: scale(1.02); }
-        .type-btn:active { transform: scale(0.98); background: #00d4ff; color: #1a1a2e; }
+        .container { max-width: 1200px; margin: 0 auto; padding: 20px; }
+        h1 { text-align: center; color: #00d4ff; margin-bottom: 30px; }
+        .tables-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 20px; }
+        .table-card { background: #16213e; border-radius: 16px; padding: 20px; border: 3px solid #333; }
+        .table-card.active { border-color: #00d4ff; }
+        .table-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
+        .table-number { font-size: 28px; font-weight: bold; color: #00d4ff; }
+        .table-badge { background: #ff6b6b; color: white; padding: 4px 12px; border-radius: 12px; font-size: 14px; }
+        .plate-buttons { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-bottom: 15px; }
+        .plate-btn { padding: 15px; background: #0f3460; border: 2px solid #333; border-radius: 10px; color: #eee; cursor: pointer; font-size: 14px; transition: all 0.1s; }
+        .plate-btn:hover { border-color: #00d4ff; }
+        .plate-btn:active { background: #00d4ff; color: #1a1a2e; }
+        .plate-btn.selected { background: #00d4ff; color: #1a1a2e; border-color: #00d4ff; }
+        .order-items { min-height: 60px; background: #0f3460; border-radius: 10px; padding: 10px; margin-bottom: 15px; }
+        .order-item { display: flex; justify-content: space-between; align-items: center; padding: 8px; background: #16213e; border-radius: 6px; margin-bottom: 6px; }
+        .order-item:last-child { margin-bottom: 0; }
+        .order-item button { background: #ff4757; border: none; border-radius: 4px; padding: 4px 10px; color: white; cursor: pointer; }
+        .send-btn { width: 100%; padding: 16px; background: #2ed573; border: none; border-radius: 10px; color: #1a1a2e; font-size: 18px; font-weight: bold; cursor: pointer; }
+        .send-btn:hover { background: #26b863; }
+        .send-btn:disabled { background: #333; color: #666; cursor: not-allowed; }
         .sent { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: #2ed573; color: #1a1a2e; padding: 30px 60px; border-radius: 20px; font-size: 36px; font-weight: bold; opacity: 0; transition: opacity 0.2s; pointer-events: none; }
         .sent.show { opacity: 1; }
     </style>
 </head>
 <body>
-    <div class="container" id="grid">
-        {% for order_type in order_types %}
-        <button class="type-btn" onclick="sendOrder('{{ order_type }}')">{{ order_type }}</button>
-        {% endfor %}
+    <div class="container">
+        <h1>Frontdesk</h1>
+        <div class="tables-grid" id="tables"></div>
     </div>
     <div class="sent" id="sent">SENT!</div>
     <script>
-        async function sendOrder(type) {
+        const NUM_TABLES = 10;
+        const orderTypes = {{ order_types_json | safe }};
+        const tables = {};
+
+        function initTables() {
+            for (let i = 1; i <= NUM_TABLES; i++) {
+                tables[i] = { items: [] };
+            }
+            renderTables();
+        }
+
+        function renderTables() {
+            const container = document.getElementById('tables');
+            container.innerHTML = '';
+            for (let i = 1; i <= NUM_TABLES; i++) {
+                const table = tables[i];
+                const card = document.createElement('div');
+                card.className = 'table-card' + (table.items.length > 0 ? ' active' : '');
+                card.innerHTML = `
+                    <div class="table-header">
+                        <span class="table-number">Table ${i}</span>
+                        <span class="table-badge">${table.items.length} plates</span>
+                    </div>
+                    <div class="plate-buttons">
+                        ${orderTypes.map(t => `<button class="plate-btn" onclick="addPlate(${i}, '${t}')">${t}</button>`).join('')}
+                    </div>
+                    <div class="order-items">
+                        ${table.items.length === 0 ? '<div style="color:#666;text-align:center;padding:20px;">No items</div>' : 
+                          table.items.map((item, idx) => `<div class="order-item"><span>${item}</span><button onclick="removePlate(${i}, ${idx})">×</button></div>`).join('')}
+                    </div>
+                    <button class="send-btn" onclick="sendOrder(${i})" ${table.items.length === 0 ? 'disabled' : ''}>SEND</button>
+                `;
+                container.appendChild(card);
+            }
+        }
+
+        function addPlate(tableNum, plate) {
+            tables[tableNum].items.push(plate);
+            renderTables();
+        }
+
+        function removePlate(tableNum, idx) {
+            tables[tableNum].items.splice(idx, 1);
+            renderTables();
+        }
+
+        async function sendOrder(tableNum) {
+            const table = tables[tableNum];
+            if (table.items.length === 0) return;
             const res = await fetch('/api/orders', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ id: Date.now(), order_type: type, table: 'Table', items: [], notes: null })
+                body: JSON.stringify({
+                    id: Date.now(),
+                    table: tableNum,
+                    plates: table.items,
+                    notes: null
+                })
             });
             if (res.ok) {
+                tables[tableNum].items = [];
+                renderTables();
                 const el = document.getElementById('sent');
                 el.classList.add('show');
                 setTimeout(() => el.classList.remove('show'), 800);
             }
         }
+
+        initTables();
     </script>
 </body>
 </html>"#;
@@ -106,13 +179,13 @@ static KITCHEN_TEMPLATE: &str = r#"<!DOCTYPE html>
         h1 { text-align: center; color: #ff6b6b; margin-bottom: 30px; }
         .order { background: #16213e; border-radius: 12px; padding: 20px; margin-bottom: 20px; border-left: 4px solid #ff6b6b; animation: slideIn 0.3s ease; }
         @keyframes slideIn { from { transform: translateX(-20px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
-        .order-type { display: inline-block; background: #00d4ff; color: #1a1a2e; padding: 5px 15px; border-radius: 20px; font-size: 14px; font-weight: bold; margin-bottom: 10px; }
+        .order-table { display: inline-block; background: #00d4ff; color: #1a1a2e; padding: 8px 20px; border-radius: 12px; font-size: 24px; font-weight: bold; margin-bottom: 10px; }
         .order-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
-        .order-table { font-size: 24px; font-weight: bold; color: #00d4ff; }
         .order-id { color: #666; font-size: 14px; }
-        .order-items { list-style: none; margin-bottom: 15px; }
-        .order-items li { padding: 8px 0; border-bottom: 1px solid #333; font-size: 18px; }
-        .order-items li:last-child { border-bottom: none; }
+        .order-plates { list-style: none; margin-bottom: 15px; }
+        .order-plates li { padding: 12px 0; border-bottom: 1px solid #333; font-size: 20px; font-weight: bold; display: flex; align-items: center; gap: 10px; }
+        .order-plates li::before { content: '•'; color: #ff6b6b; }
+        .order-plates li:last-child { border-bottom: none; }
         .order-notes { background: #0f3460; padding: 10px; border-radius: 8px; margin-bottom: 15px; font-style: italic; color: #ffd93d; }
         .done-btn { width: 100%; padding: 16px; background: #2ed573; border: none; border-radius: 8px; color: #1a1a2e; font-size: 18px; font-weight: bold; cursor: pointer; }
         .done-btn:hover { background: #26b863; }
@@ -141,13 +214,12 @@ static KITCHEN_TEMPLATE: &str = r#"<!DOCTYPE html>
                 lastOrderCount = orders.length;
                 container.innerHTML = orders.map(o => `
                     <div class="order">
-                        <!-- <div class="order-type">${o.order_type}</div> -->
                         <div class="order-header">
-                            <span class="order-table">${o.order_type}</span>
+                            <span class="order-table">Table ${o.table}</span>
                             <span class="order-id">#${o.id}</span>
                         </div>
-                        <ul class="order-items">
-                            ${o.items.map(item => `<li>${item}</li>`).join('')}
+                        <ul class="order-plates">
+                            ${o.plates.map(plate => `<li>${plate}</li>`).join('')}
                         </ul>
                         ${o.notes ? `<div class="order-notes">${o.notes}</div>` : ''}
                         <button class="done-btn" onclick="done(${o.id})">DONE</button>

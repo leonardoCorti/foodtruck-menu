@@ -6,9 +6,8 @@ use tokio::sync::Mutex;
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Order {
     pub id: u64,
-    pub order_type: String,
-    pub table: String,
-    pub items: Vec<String>,
+    pub table: u32,
+    pub plates: Vec<String>,
     pub notes: Option<String>,
 }
 
