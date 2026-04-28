@@ -4,26 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Kitchen - Orders</title>
-    <style>
-        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #1a1a2e; color: #eee; min-height: 100vh; }
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        .container { max-width: 800px; margin: 0 auto; padding: 20px; }
-        h1 { text-align: center; color: #ff6b6b; margin-bottom: 30px; }
-        .order { background: #16213e; border-radius: 12px; padding: 20px; margin-bottom: 20px; border-left: 4px solid #ff6b6b; animation: slideIn 0.3s ease; }
-        @keyframes slideIn { from { transform: translateX(-20px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
-        .order-table { display: inline-block; background: #00d4ff; color: #1a1a2e; padding: 8px 20px; border-radius: 12px; font-size: 24px; font-weight: bold; margin-bottom: 10px; }
-        .order-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
-        .order-id { color: #666; font-size: 14px; }
-        .order-plates { list-style: none; margin-bottom: 15px; }
-        .order-plates li { padding: 12px 0; border-bottom: 1px solid #333; font-size: 20px; font-weight: bold; display: flex; align-items: center; gap: 10px; }
-        .order-plates li::before { content: '•'; color: #ff6b6b; }
-        .order-plates li:last-child { border-bottom: none; }
-        .order-notes { background: #0f3460; padding: 10px; border-radius: 8px; margin-bottom: 15px; font-style: italic; color: #ffd93d; }
-        .done-btn { width: 100%; padding: 16px; background: #2ed573; border: none; border-radius: 8px; color: #1a1a2e; font-size: 18px; font-weight: bold; cursor: pointer; }
-        .done-btn:hover { background: #26b863; }
-        .empty { text-align: center; padding: 60px; color: #666; font-size: 24px; }
-        .status { position: fixed; top: 20px; right: 20px; background: #2ed573; padding: 8px 16px; border-radius: 8px; font-size: 12px; }
-    </style>
+    <link rel="stylesheet" href="/static/kitchen.css">
 </head>
 <body>
     <div class="container">
