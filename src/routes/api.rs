@@ -1,7 +1,7 @@
 use crate::models::{AppState, Config, Order};
 use axum::{
-    extract::Path,
     Router,
+    extract::Path,
     extract::State,
     http::StatusCode,
     response::Json,
@@ -16,6 +16,8 @@ pub fn api_routes() -> Router<AppState> {
         .route("/orders/{id}", delete(clear_order_by_id))
         .route("/config", get(get_config))
         .route("/config", post(update_config))
+        .route("/settings/save", post(save_settings))
+        .route("/settings/load", post(load_settings))
 }
 
 async fn create_order(State(state): State<AppState>, Json(order): Json<Order>) -> StatusCode {
@@ -57,4 +59,17 @@ async fn update_config(
     let mut config = state.config.lock().await;
     *config = new_config.clone();
     Json(new_config)
+}
+
+async fn save_settings(State(state): State<AppState>) -> Json<Config> {
+    let config = state.config.lock().await;
+    crate::models::save_settings(&config);
+    Json(config.clone())
+}
+
+async fn load_settings(State(state): State<AppState>) -> Json<Config> {
+    let config = crate::models::load_settings();
+    let mut current = state.config.lock().await;
+    *current = config.clone();
+    Json(config)
 }

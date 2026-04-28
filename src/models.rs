@@ -1,5 +1,7 @@
 use serde::{Deserialize, Serialize};
 use std::collections::VecDeque;
+use std::fs;
+use std::path::Path;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
@@ -47,10 +49,37 @@ impl AppState {
             config: Arc::new(Mutex::new(Config::default())),
         }
     }
+
+    pub fn with_config(config: Config) -> Self {
+        Self {
+            orders: Arc::new(Mutex::new(VecDeque::new())),
+            config: Arc::new(Mutex::new(config)),
+        }
+    }
 }
 
 impl Default for AppState {
     fn default() -> Self {
         Self::new()
     }
+}
+
+pub fn load_settings() -> Config {
+    let path = Path::new("settings/settings.json");
+    if path.exists()
+        && let Ok(contents) = fs::read_to_string(path)
+        && let Ok(config) = serde_json::from_str(&contents)
+    {
+        return config;
+    }
+    Config::default()
+}
+
+pub fn save_settings(config: &Config) {
+    let path = "settings/settings.json";
+    if let Some(parent) = Path::new(path).parent() {
+        fs::create_dir_all(parent).expect("Failed to create settings directory");
+    }
+    let json = serde_json::to_string_pretty(config).expect("Failed to serialize config");
+    fs::write(path, json).expect("Failed to write settings file");
 }

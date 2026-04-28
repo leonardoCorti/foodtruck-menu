@@ -22,7 +22,9 @@
                 <input type="checkbox" id="soundEnabled" {% if config.sound_enabled %}checked{% endif %}>
                 <label style="margin: 0;">Sound Enabled</label>
             </div>
-            <button onclick="saveConfig()">Save Configuration</button>
+            <!-- <button onclick="saveConfig()">Save Configuration</button> -->
+            <button onclick="saveSettings()">Save Settings</button>
+            <button onclick="loadSettings()">Load Settings</button>
             <div id="status"></div>
         </div>
         <div class="card">
@@ -60,6 +62,23 @@
             };
             await fetch('/api/config', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(config) });
             document.getElementById('status').textContent = 'Configuration saved!';
+            setTimeout(() => document.getElementById('status').textContent = '', 2000);
+        }
+        async function saveSettings() {
+            const res = await fetch('/api/settings/save', { method: 'POST' });
+            const config = await res.json();
+            document.getElementById('status').textContent = 'Settings saved to file!';
+            setTimeout(() => document.getElementById('status').textContent = '', 2000);
+        }
+        async function loadSettings() {
+            const res = await fetch('/api/settings/load', { method: 'POST' });
+            const config = await res.json();
+            document.getElementById('displayName').value = config.display_name;
+            document.getElementById('autoRefresh').value = config.auto_refresh_ms;
+            document.getElementById('soundEnabled').checked = config.sound_enabled;
+            currentOrderTypes = config.order_types;
+            renderOrderTypes();
+            document.getElementById('status').textContent = 'Settings loaded from file!';
             setTimeout(() => document.getElementById('status').textContent = '', 2000);
         }
         function renderOrderTypes() {

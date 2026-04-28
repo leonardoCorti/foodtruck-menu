@@ -8,7 +8,8 @@ use tower_http::services::ServeDir;
 
 #[tokio::main]
 async fn main() {
-    let state = AppState::new();
+    let config = models::load_settings();
+    let state = AppState::with_config(config);
 
     let app = Router::new()
         .merge(pages::page_routes())
