@@ -4,6 +4,7 @@ use std::fs;
 use std::path::Path;
 use std::sync::Arc;
 use tokio::sync::Mutex;
+use tracing::{error, info, warn};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Order {
@@ -66,20 +67,48 @@ impl Default for AppState {
 
 pub fn load_settings() -> Config {
     let path = Path::new("settings/settings.json");
-    if path.exists()
-        && let Ok(contents) = fs::read_to_string(path)
-        && let Ok(config) = serde_json::from_str(&contents)
-    {
-        return config;
+    if path.exists() {
+        info!("Loading settings from {:?}", path);
+        match fs::read_to_string(path) {
+            Ok(contents) => match serde_json::from_str(&contents) {
+                Ok(config) => {
+                    info!("Settings loaded successfully");
+                    return config;
+                }
+                Err(e) => {
+                    error!("Failed to parse settings file: {}", e);
+                }
+            },
+            Err(e) => {
+                error!("Failed to read settings file: {}", e);
+            }
+        }
+    } else {
+        warn!("Settings file not found, using defaults");
     }
     Config::default()
 }
 
 pub fn save_settings(config: &Config) {
     let path = "settings/settings.json";
+    info!("Saving settings to {}", path);
     if let Some(parent) = Path::new(path).parent() {
-        fs::create_dir_all(parent).expect("Failed to create settings directory");
+        if let Err(e) = fs::create_dir_all(parent) {
+            error!("Failed to create settings directory: {}", e);
+            panic!("Failed to create settings directory");
+        }
     }
-    let json = serde_json::to_string_pretty(config).expect("Failed to serialize config");
-    fs::write(path, json).expect("Failed to write settings file");
+    match serde_json::to_string_pretty(config) {
+        Ok(json) => match fs::write(path, json) {
+            Ok(_) => info!("Settings saved successfully"),
+            Err(e) => {
+                error!("Failed to write settings file: {}", e);
+                panic!("Failed to write settings file");
+            }
+        },
+        Err(e) => {
+            error!("Failed to serialize config: {}", e);
+            panic!("Failed to serialize config");
+        }
+    }
 }

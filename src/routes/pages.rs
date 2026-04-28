@@ -1,6 +1,7 @@
 use crate::models::AppState;
 use axum::{Router, extract::State, response::Html, routing::get};
 use tera::{Context, Tera};
+use tracing::info;
 
 pub fn page_routes() -> Router<AppState> {
     Router::new()
@@ -21,6 +22,7 @@ pub fn render_template(template_name: &str, context: Context) -> String {
 }
 
 async fn frontdesk(State(state): State<AppState>) -> Html<String> {
+    info!("Serving frontdesk page");
     let config = state.config.lock().await.clone();
     let mut ctx = Context::new();
     ctx.insert("order_types", &config.order_types);
@@ -32,11 +34,13 @@ async fn frontdesk(State(state): State<AppState>) -> Html<String> {
 }
 
 async fn kitchen(_state: State<AppState>) -> Html<String> {
+    info!("Serving kitchen page");
     let ctx = Context::new();
     Html(render_template("kitchen.html", ctx))
 }
 
 async fn administrator(State(state): State<AppState>) -> Html<String> {
+    info!("Serving administrator page");
     let config = state.config.lock().await.clone();
     let mut ctx = Context::new();
     ctx.insert("config", &config);
