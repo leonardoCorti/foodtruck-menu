@@ -10,6 +10,7 @@ RUN mkdir -p src && echo "fn main() {}" > src/main.rs
 RUN cargo fetch
 RUN rm -fr ./src
 COPY src ./src
+COPY templates/ ./templates/
 RUN cargo build --release
 
 # -------- Runtime stage --------
@@ -20,7 +21,13 @@ RUN apt-get update && apt-get install -y \
   ca-certificates \
   && rm -rf /var/lib/apt/lists/*
 
+
 WORKDIR /app
+
+RUN mkdir /app/settings
+
+COPY static/ /app/static/
+COPY templates/ /app/templates/
 
 # Copy compiled binary
 COPY --from=builder /app/target/release/foodtruck-menu /app/app
